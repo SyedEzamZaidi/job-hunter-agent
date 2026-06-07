@@ -1,0 +1,8 @@
+# secrets — never commit API keys
+.env
+
+# virtual environment — rebuildable, don't track it
+.venv/
+
+# Python's compiled cache — auto-generated junk
+__pycache__/
