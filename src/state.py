@@ -17,3 +17,5 @@ class JobApplicationState(TypedDict):
     skills: list[str]
     company_name: str
     pasted_jd: str
+    requirements: str
+    
