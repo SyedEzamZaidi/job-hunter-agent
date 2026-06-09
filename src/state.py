@@ -18,4 +18,8 @@ class JobApplicationState(TypedDict):
     company_name: str
     pasted_jd: str
     requirements: str
-    
+    fit_score: int
+    eligible: str
+    eligible_reason: str
+    fit_reason: str
+

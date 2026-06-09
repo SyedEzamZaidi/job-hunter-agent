@@ -1,12 +1,14 @@
 from langgraph.graph import StateGraph, START, END
 from state import JobApplicationState
-from nodes import extract_requirements
+from nodes import extract_requirements, score_fit
 
 
 builder = StateGraph(JobApplicationState)
 builder.add_node("extract", extract_requirements)
+builder.add_node("verdict", score_fit)
 builder.add_edge(START,"extract")
-builder.add_edge("extract",END)
+builder.add_edge("extract","verdict")
+builder.add_edge("verdict",END)
 graph = builder.compile()
 
 sample_jd = """
@@ -39,5 +41,15 @@ sample_jd = """
   We offer a fully remote role, flexible hours, and a learning budget.
   """
 
-result = graph.invoke({"pasted_jd": sample_jd})
-print(result["requirements"])
+result = graph.invoke({
+      "pasted_jd": sample_jd,
+      "location": "Ghaziabad, Uttar Pradesh, India",
+      "skills": ["Automation Anywhere", "Power Platform", "Python (learning)", "RPA", "BI"],
+      "years_experience": 7.0,
+      "work_authorization": "Indian citizen; No other legal permits for any other country",
+      "work_preference": "Remote",
+      "willing_to_relocate": "No",
+      "salary_expectation": 2500000,
+      "salary_currency": "INR"})
+
+print(result["fit_score"], result["eligible"], result["eligible_reason"],result["fit_reason"])
