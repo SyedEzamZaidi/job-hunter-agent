@@ -2,6 +2,7 @@ from llm import llm
 from state import JobApplicationState 
 from pydantic import BaseModel, Field
 from typing import Literal
+from langgraph.types import interrupt, Command
 
 def extract_requirements(state: JobApplicationState):
     request = f"Here is a job description of a company : {state['pasted_jd']}. Please extract out the job requirements"
@@ -67,4 +68,12 @@ def score_fit(state: JobApplicationState):
     structured_llm = llm.with_structured_output(FitAssessment)
     response = structured_llm.invoke(request)
     return {"fit_score": response.fit_score, "eligible": response.eligible, "eligible_reason": response.eligible_reason, "fit_reason": response.fit_reason}
+
+def hitl_gate(state: JobApplicationState):
+    ask_human = interrupt(f"Do you approve? Fit Score = {state['fit_score']}, Eligibility = {state['eligible']}, Eligible Reason = {state['eligible_reason']} and Fit Reason = {state['fit_reason']}")
+    return {"status": ask_human["decision"] , "review_notes": ask_human["notes"]}
+
+
+
+
 

@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import TypedDict, Literal
 
 class JobApplicationState(TypedDict):
     full_name: str
@@ -22,4 +22,6 @@ class JobApplicationState(TypedDict):
     eligible: str
     eligible_reason: str
     fit_reason: str
+    status: Literal["Pending","Approved","Rejected"]
+    review_notes: str
 

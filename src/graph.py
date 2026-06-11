@@ -1,15 +1,18 @@
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import InMemorySaver
 from state import JobApplicationState
-from nodes import extract_requirements, score_fit
+from nodes import extract_requirements, score_fit, hitl_gate
 
 
 builder = StateGraph(JobApplicationState)
 builder.add_node("extract", extract_requirements)
 builder.add_node("verdict", score_fit)
+builder.add_node("gate", hitl_gate)
 builder.add_edge(START,"extract")
 builder.add_edge("extract","verdict")
-builder.add_edge("verdict",END)
-graph = builder.compile()
+builder.add_edge("verdict","gate")
+builder.add_edge("gate",END)
+graph = builder.compile(checkpointer= InMemorySaver())
 
 sample_jd = """
   AI Automation Engineer — Remote (EU time zones)
