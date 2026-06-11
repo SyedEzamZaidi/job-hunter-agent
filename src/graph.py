@@ -2,7 +2,8 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import InMemorySaver
 from state import JobApplicationState
 from nodes import extract_requirements, score_fit, hitl_gate
-
+from datetime import datetime
+from langgraph.types import Command
 
 builder = StateGraph(JobApplicationState)
 builder.add_node("extract", extract_requirements)
@@ -44,6 +45,10 @@ sample_jd = """
   We offer a fully remote role, flexible hours, and a learning budget.
   """
 
+thread_id = datetime.now().strftime("Job_%d_%m_%Y__%H_%M_%S")
+
+config = {"configurable": {"thread_id": thread_id}}
+
 result = graph.invoke({
       "pasted_jd": sample_jd,
       "location": "Ghaziabad, Uttar Pradesh, India",
@@ -53,6 +58,10 @@ result = graph.invoke({
       "work_preference": "Remote",
       "willing_to_relocate": "No",
       "salary_expectation": 2500000,
-      "salary_currency": "INR"})
+      "salary_currency": "INR"},config= config)
 
-print(result["fit_score"], result["eligible"], result["eligible_reason"],result["fit_reason"])
+#print(result)
+
+final = graph.invoke(Command(resume={"decision": "Approved", "notes": "looks Good"}), config= config)
+
+print(final)
