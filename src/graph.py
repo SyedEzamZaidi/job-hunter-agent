@@ -60,8 +60,16 @@ result = graph.invoke({
       "salary_expectation": 2500000,
       "salary_currency": "INR"},config= config)
 
-#print(result)
+print(result["__interrupt__"][0].value)
 
-final = graph.invoke(Command(resume={"decision": "Approved", "notes": "looks Good"}), config= config)
+choice = input("Press 1 = Approved, 2= Rejected\n")
+options= {"1": "Approved", "2": "Rejected"}
+decision = options[choice]
+#print(decision)
 
-print(final)
+notes = input("Add any notes if you want to.\n")
+
+
+final = graph.invoke(Command(resume={"decision": decision, "notes": notes}), config= config)
+
+print(final["status"],final["review_notes"])
