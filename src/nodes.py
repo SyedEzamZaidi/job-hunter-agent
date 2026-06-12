@@ -71,7 +71,7 @@ def score_fit(state: JobApplicationState):
 
 def hitl_gate(state: JobApplicationState):
     ask_human = interrupt(f"Do you approve? Fit Score = {state['fit_score']}, Eligibility = {state['eligible']}, Eligible Reason = {state['eligible_reason']} and Fit Reason = {state['fit_reason']}")
-    return {"status": ask_human["decision"] , "review_notes": ask_human["notes"]}
+    return {"status": ask_human["decision"] , "review_notes": ask_human["notes"]} 
 
 
 
