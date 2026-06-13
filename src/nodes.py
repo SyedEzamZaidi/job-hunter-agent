@@ -74,6 +74,41 @@ def hitl_gate(state: JobApplicationState):
     return {"status": ask_human["decision"] , "review_notes": ask_human["notes"]} 
 
 
+class WriterContent(BaseModel):
+    cv: str = Field(description="A complete, ATS-friendly CV tailored to this job, in plain text with "
+                              "standard sections (Summary, Skills, Experience). Weave in keywords from "
+                              "the job requirements; use ONLY the candidate's real information — invent nothing.")
+    cover_letter: str = Field(description="A concise, tailored cover letter (3–4 short paragraphs) "
+                                        "connecting the candidate's real experience to this job's "
+                                        "requirements. Professional tone. No fabricated achievements.")
+
+def writer(state: JobApplicationState):
+    structured_llm = llm.with_structured_output(WriterContent)
+    request = f"""You are an expert career writer. Draft a tailored CV and a cover letter for this
+  candidate applying to the job below.
+
+  JOB
+  Description: {state['pasted_jd']}
+  Key requirements: {state['requirements']}
+
+  CANDIDATE
+  Name: {state['full_name']}
+  Current title: {state['current_title']}
+  Years of experience: {state['years_experience']}
+  Skills: {state['skills']}
+  Location: {state['location']}
+  Contact: {state['email']} | {state['phone']} | {state['linkedin_url']} | {state['github_url']}
+
+  INSTRUCTIONS
+  - Tailor both documents to the job's requirements using ATS-friendly language and the requirement keywords.
+  - Use ONLY the candidate's real experience and skills — do NOT fabricate employers, achievements, or qualifications.
+  - CV: plain text, clear standard sections. Cover letter: concise, professional, 3–4 short paragraphs.
+  """
+    response = structured_llm.invoke(request)
+    return {"cv": response.cv, "cover_letter": response.cover_letter}
+
+
+
 
 
 

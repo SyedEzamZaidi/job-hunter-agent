@@ -24,4 +24,7 @@ class JobApplicationState(TypedDict):
     fit_reason: str
     status: Literal["Pending","Approved","Rejected"]
     review_notes: str
+    cv: str
+    cover_letter: str
+    
 
