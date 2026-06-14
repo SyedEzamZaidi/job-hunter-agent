@@ -4,6 +4,7 @@ from state import JobApplicationState
 from nodes import extract_requirements, score_fit, hitl_gate, writer
 from datetime import datetime
 from langgraph.types import Command
+from interrupt import collect_answers
 
 def route_after_gate(state: JobApplicationState):
     if state["status"] == "Approved":
@@ -16,11 +17,11 @@ builder = StateGraph(JobApplicationState)
 builder.add_node("extract", extract_requirements)
 builder.add_node("verdict", score_fit)
 builder.add_node("gate", hitl_gate)
-builder.add_node("writer",writer)
+#builder.add_node("writer",writer)
 builder.add_edge(START,"extract")
 builder.add_edge("extract","verdict")
 builder.add_edge("verdict","gate")
-builder.add_conditional_edges("gate",route_after_gate)
+#builder.add_conditional_edges("gate",route_after_gate)
 graph = builder.compile(checkpointer= InMemorySaver())
 
 sample_jd = """
@@ -57,66 +58,61 @@ thread_id = datetime.now().strftime("Job_%d_%m_%Y__%H_%M_%S")
 
 config = {"configurable": {"thread_id": thread_id}}
 
-full_name = input("What's your full name?\n")
-email = input("Your email?\n")
-phone = input("Your phone number?\n")
-location = input("Your location?\n")
-linkedin_url = input("Your LinkedIn URL?\n")
-github_url = input("Your GitHub URL?\n")
-current_title = input("Your current job title?\n")
-years_experience = float(input("Years of experience (e.g. 7 or 7.5)?\n"))   # float()
-skills = input("Your skills, comma-separated (e.g. RPA,Python,BI)?\n").split(",")  # → list
-work_authorization = input("Your work authorization?\n")
-work_preference = input("Work preference (Remote/Hybrid/Onsite)?\n")
-willing_to_relocate = input("Willing to relocate? (Yes/No)\n")
-salary_expectation = int(input("Salary expectation (number only)?\n"))       # int()
-salary_currency = input("Salary currency (e.g. INR)?\n")
-company_name = input("Company name (from the JD)?\n")
-pasted_jd = input("Paste the full job description:\n")
-
-
-result = graph.invoke({
-      "full_name": full_name,
-      "email": email,
-      "phone": phone,
-      "location": location,
-      "linkedin_url": linkedin_url,
-      "github_url": github_url,
-      "current_title": current_title,
-      "years_experience": years_experience,
-      "skills": skills,
-      "work_authorization": work_authorization,
-      "work_preference": work_preference,
-      "willing_to_relocate": willing_to_relocate,
-      "salary_expectation": salary_expectation,
-      "salary_currency": salary_currency,
-      "company_name": company_name,
-      "pasted_jd": pasted_jd,
-      "status": "Pending",
-  }, config=config)
+# full_name = input("What's your full name?\n")
+# email = input("Your email?\n")
+# phone = input("Your phone number?\n")
+# location = input("Your location?\n")
+# linkedin_url = input("Your LinkedIn URL?\n")
+# github_url = input("Your GitHub URL?\n")
+# current_title = input("Your current job title?\n")
+# years_experience = float(input("Years of experience (e.g. 7 or 7.5)?\n"))   # float()
+# skills = input("Your skills, comma-separated (e.g. RPA,Python,BI)?\n").split(",")  # → list
+# work_authorization = input("Your work authorization?\n")
+# work_preference = input("Work preference (Remote/Hybrid/Onsite)?\n")
+# willing_to_relocate = input("Willing to relocate? (Yes/No)\n")
+# salary_expectation = int(input("Salary expectation (number only)?\n"))       # int()
+# salary_currency = input("Salary currency (e.g. INR)?\n")
+# company_name = input("Company name (from the JD)?\n")
+# pasted_jd = input("Paste the full job description:\n")
 
 
 # result = graph.invoke({
-#       "pasted_jd": sample_jd,
-#       "location": "Ghaziabad, Uttar Pradesh, India",
-#       "skills": ["Automation Anywhere", "Power Platform", "Python (learning)", "RPA", "BI"],
-#       "years_experience": 7.0,
-#       "work_authorization": "Indian citizen; No other legal permits for any other country",
-#       "work_preference": "Remote",
-#       "willing_to_relocate": "No",
-#       "salary_expectation": 2500000,
-#       "salary_currency": "INR"},config= config)
+#       "full_name": full_name,
+#       "email": email,
+#       "phone": phone,
+#       "location": location,
+#       "linkedin_url": linkedin_url,
+#       "github_url": github_url,
+#       "current_title": current_title,
+#       "years_experience": years_experience,
+#       "skills": skills,
+#       "work_authorization": work_authorization,
+#       "work_preference": work_preference,
+#       "willing_to_relocate": willing_to_relocate,
+#       "salary_expectation": salary_expectation,
+#       "salary_currency": salary_currency,
+#       "company_name": company_name,
+#       "pasted_jd": pasted_jd,
+#       "status": "Pending",
+#      }, config=config)
 
-print(result["__interrupt__"][0].value)
 
-choice = input("Press 1 = Approved, 2= Rejected\n")
-options= {"1": "Approved", "2": "Rejected"}
-decision = options[choice]
-#print(decision)
+result = graph.invoke({
+      "pasted_jd": sample_jd,
+      "location": "Ghaziabad, Uttar Pradesh, India",
+      "skills": ["Automation Anywhere", "Power Platform", "Python (learning)", "RPA", "BI"],
+      "years_experience": 7.0,
+      "work_authorization": "Indian citizen; No other legal permits for any other country",
+      "work_preference": "Remote",
+      "willing_to_relocate": "No",
+      "salary_expectation": 2500000,
+      "salary_currency": "INR"},config= config)
 
-notes = input("Add any notes if you want to.\n")
+# print(result["__interrupt__"][0].value)
+
+fields = result["__interrupt__"][0].value
+
+clean = collect_answers(fields)            
 
 
-final = graph.invoke(Command(resume={"decision": decision, "notes": notes}), config= config)
-
-print(final["status"],final["review_notes"])
+final = graph.invoke(Command(resume= clean), config= config)

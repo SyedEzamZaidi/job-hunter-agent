@@ -51,7 +51,7 @@ def score_fit(state: JobApplicationState):
   INSTRUCTIONS
   - fit_score (0–100): rate ONLY how well the candidate's skills and experience match the role's
     requirements. Do NOT factor in eligibility, work authorization, visa, location, or salary —
-    those must not change this number.
+    those must not change this number. This should always be an interger value and never string.
    - fit_reason: in one or two sentences, explain the fit_score — name which skills/experience matched
     and which gaps lowered it. Skills/experience only; do not mention eligibility here.
   - eligible (Yes / No / Unclear): judge ONLY against restrictions the posting EXPLICITLY states.
@@ -69,10 +69,16 @@ def score_fit(state: JobApplicationState):
     response = structured_llm.invoke(request)
     return {"fit_score": response.fit_score, "eligible": response.eligible, "eligible_reason": response.eligible_reason, "fit_reason": response.fit_reason}
 
-def hitl_gate(state: JobApplicationState):
-    ask_human = interrupt(f"Do you approve? Fit Score = {state['fit_score']}, Eligibility = {state['eligible']}, Eligible Reason = {state['eligible_reason']} and Fit Reason = {state['fit_reason']}")
-    return {"status": ask_human["decision"] , "review_notes": ask_human["notes"]} 
+# def hitl_gate(state: JobApplicationState):
+#     ask_human = interrupt(f"Do you approve? Fit Score = {state['fit_score']}, Eligibility = {state['eligible']}, Eligible Reason = {state['eligible_reason']} and Fit Reason = {state['fit_reason']}")
+#     return {"status": ask_human["decision"] , "review_notes": ask_human["notes"]} 
 
+def hitl_gate(state: JobApplicationState):
+    payload = [{"name": "status","kind": "choice", "prompt": f"Fit Score = {state['fit_score']}\n Eligibility = {state['eligible']}\n Eligible Reason = {state['eligible_reason']}\n Fit Reason = {state['fit_reason']}\n"
+                          "Do You Approve?", "required": True, "options": {"1":"Approved","2":"Rejected"}},{"name": "review_notes", "kind": "text", "prompt": "Please give the notes if needed", "required":False}]
+    ask_human = interrupt(payload)
+    
+    return {"status": ask_human["status"], "review_notes": ask_human.get("review_notes")} 
 
 class WriterContent(BaseModel):
     cv: str = Field(description="A complete, ATS-friendly CV tailored to this job, in plain text with "
