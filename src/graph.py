@@ -110,9 +110,12 @@ result = graph.invoke({
 
 # print(result["__interrupt__"][0].value)
 
-fields = result["__interrupt__"][0].value
+if "__interrupt__" in result:
+    fields = result["__interrupt__"][0].value
+    clean = collect_answers(fields)            
+    final = graph.invoke(Command(resume= clean), config= config)
 
-clean = collect_answers(fields)            
+else:
+    final = result
 
-
-final = graph.invoke(Command(resume= clean), config= config)
+print(final)
