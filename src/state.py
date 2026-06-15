@@ -26,5 +26,8 @@ class JobApplicationState(TypedDict):
     review_notes: str
     cv: str
     cover_letter: str
+    critic_score: int
+    critic_notes: str
+    wcloop_counter: int
     
 

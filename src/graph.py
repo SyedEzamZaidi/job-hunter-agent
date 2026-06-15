@@ -12,16 +12,28 @@ def route_after_gate(state: JobApplicationState):
     else:
         return END
     
+def route_after_critic(state: JobApplicationState):
+    if state["critic_score"] >=7:
+       return END
+    elif state["wcloop_counter"] < 5:
+        return "writer"
+    else:
+        return "hitl_gate_2"
+        
+            
+    
+    
 
 builder = StateGraph(JobApplicationState)
 builder.add_node("extract", extract_requirements)
 builder.add_node("verdict", score_fit)
 builder.add_node("gate", hitl_gate)
-#builder.add_node("writer",writer)
+builder.add_node("writer",writer)
 builder.add_edge(START,"extract")
 builder.add_edge("extract","verdict")
 builder.add_edge("verdict","gate")
-#builder.add_conditional_edges("gate",route_after_gate)
+builder.add_conditional_edges("gate",route_after_gate)
+# builder.add_edge()
 graph = builder.compile(checkpointer= InMemorySaver())
 
 sample_jd = """
@@ -98,15 +110,24 @@ config = {"configurable": {"thread_id": thread_id}}
 
 
 result = graph.invoke({
-      "pasted_jd": sample_jd,
-      "location": "Ghaziabad, Uttar Pradesh, India",
-      "skills": ["Automation Anywhere", "Power Platform", "Python (learning)", "RPA", "BI"],
-      "years_experience": 7.0,
-      "work_authorization": "Indian citizen; No other legal permits for any other country",
-      "work_preference": "Remote",
-      "willing_to_relocate": "No",
-      "salary_expectation": 2500000,
-      "salary_currency": "INR"},config= config)
+        "full_name": "Syed Ezam Zaidi",
+        "email": "syedezamzaidi@gmail.com",
+        "phone": "+91-9876543210",
+        "location": "Ghaziabad, Uttar Pradesh, India",
+        "linkedin_url": "https://linkedin.com/in/syed-ezam-zaidi",
+        "github_url": "https://github.com/SyedEzamZaidi",
+        "current_title": "RPA & Automation Architect",
+        "years_experience": 7.0,
+        "skills": ["Automation Anywhere", "Power Platform", "Python (learning)", "RPA", "BI"],
+        "work_authorization": "Indian citizen; No other legal permits for any other country",
+        "work_preference": "Remote",
+        "willing_to_relocate": "No",
+        "salary_expectation": 2500000,
+        "salary_currency": "INR",
+        "company_name": "Acme Remote GmbH",
+        "pasted_jd": sample_jd,
+        "status": "Pending",
+       }, config=config)
 
 # print(result["__interrupt__"][0].value)
 

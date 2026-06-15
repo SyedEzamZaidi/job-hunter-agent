@@ -105,14 +105,28 @@ def writer(state: JobApplicationState):
   Location: {state['location']}
   Contact: {state['email']} | {state['phone']} | {state['linkedin_url']} | {state['github_url']}
 
+  REVIEWER FEEDBACK (apply this before anything else)
+  Feedback: {state.get('critic_notes',"no feedback yet")}
+
   INSTRUCTIONS
+  - If reviewer feedback is present above, treat addressing it as your TOP priority — revise the draft to resolve every point raised.
   - Tailor both documents to the job's requirements using ATS-friendly language and the requirement keywords.
   - Use ONLY the candidate's real experience and skills — do NOT fabricate employers, achievements, or qualifications.
   - CV: plain text, clear standard sections. Cover letter: concise, professional, 3–4 short paragraphs.
   """
     response = structured_llm.invoke(request)
-    return {"cv": response.cv, "cover_letter": response.cover_letter}
+    return {"cv": response.cv, "cover_letter": response.cover_letter, "wcloop_counter": state["wcloop_counter"] +1}
 
+
+class CriticOutput(BaseModel):
+    critic_score: int = Field(ge=0,le=10, description= "Overall quality of the draft (CV + cover letter) judged against the job's requirements, scored 0–10. A score of 7 or higher means it is ready to send.")
+    critic_notes: str = Field(description="Specific, actionable revision feedback for the writer — exactly what to add, cut, or rephrase. Required on every pass, even when the score is high.")
+    
+def critic(state: JobApplicationState):
+    request = ""
+    structured_llm = llm.with_structured_output(CriticOutput)
+    response = structured_llm.invoke(request)
+    return {"critic_score": response.critic_score, "critic_notes": response.critic_notes}
 
 
 
