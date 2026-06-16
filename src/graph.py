@@ -1,7 +1,7 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import InMemorySaver
 from state import JobApplicationState
-from nodes import extract_requirements, score_fit, hitl_gate, writer
+from nodes import extract_requirements, score_fit, hitl_gate, writer, critic, hitl_gate_2
 from datetime import datetime
 from langgraph.types import Command
 from interrupt import collect_answers
@@ -18,7 +18,7 @@ def route_after_critic(state: JobApplicationState):
     elif state["wcloop_counter"] < 5:
         return "writer"
     else:
-        return "hitl_gate_2"
+        return "gate_2"
         
             
     
@@ -29,11 +29,14 @@ builder.add_node("extract", extract_requirements)
 builder.add_node("verdict", score_fit)
 builder.add_node("gate", hitl_gate)
 builder.add_node("writer",writer)
+builder.add_node("critic",critic)
+builder.add_node("gate_2",hitl_gate_2)
 builder.add_edge(START,"extract")
 builder.add_edge("extract","verdict")
 builder.add_edge("verdict","gate")
 builder.add_conditional_edges("gate",route_after_gate)
-# builder.add_edge()
+builder.add_edge("writer","critic")
+builder.add_conditional_edges("critic",route_after_critic)
 graph = builder.compile(checkpointer= InMemorySaver())
 
 sample_jd = """
@@ -108,6 +111,9 @@ config = {"configurable": {"thread_id": thread_id}}
 #       "status": "Pending",
 #      }, config=config)
 
+with open("data/resume.md", "r", encoding="utf-8") as f:
+      experience_summary = f.read()
+
 
 result = graph.invoke({
         "full_name": "Syed Ezam Zaidi",
@@ -127,6 +133,8 @@ result = graph.invoke({
         "company_name": "Acme Remote GmbH",
         "pasted_jd": sample_jd,
         "status": "Pending",
+        "experience_summary": experience_summary,
+        "wcloop_counter": 0
        }, config=config)
 
 # print(result["__interrupt__"][0].value)
@@ -139,4 +147,4 @@ if "__interrupt__" in result:
 else:
     final = result
 
-print(final)
+print(final["cv"])

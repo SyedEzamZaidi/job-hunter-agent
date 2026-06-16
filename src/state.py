@@ -29,5 +29,7 @@ class JobApplicationState(TypedDict):
     critic_score: int
     critic_notes: str
     wcloop_counter: int
+    experience_summary: str
+    cv_status: Literal["Pending","Approved","Rejected"]
     
 

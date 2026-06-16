@@ -41,6 +41,7 @@ def score_fit(state: JobApplicationState):
 
   CANDIDATE
   Location: {state['location']}
+  Experince Summary: {state['experience_summary']}
   Skills: {state['skills']}
   Years of experience: {state['years_experience']}
   Work authorization: {state['work_authorization']}
@@ -75,7 +76,7 @@ def score_fit(state: JobApplicationState):
 
 def hitl_gate(state: JobApplicationState):
     payload = [{"name": "status","kind": "choice", "prompt": f"Fit Score = {state['fit_score']}\n Eligibility = {state['eligible']}\n Eligible Reason = {state['eligible_reason']}\n Fit Reason = {state['fit_reason']}\n"
-                          "Do You Approve?", "required": True, "options": {"1":"Approved","2":"Rejected"}},{"name": "review_notes", "kind": "text", "prompt": "Please give the notes if needed", "required":False}]
+                          "Do You Approve?","options": {"1":"Approved","2":"Rejected"}},{"name": "review_notes", "kind": "text", "prompt": "Please give the notes if needed", "required":False}]
     ask_human = interrupt(payload)
     
     return {"status": ask_human["status"], "review_notes": ask_human.get("review_notes")} 
@@ -89,7 +90,7 @@ class WriterContent(BaseModel):
                                         "requirements. Professional tone. No fabricated achievements.")
 
 def writer(state: JobApplicationState):
-    structured_llm = llm.with_structured_output(WriterContent)
+    structured_llm = llm.with_structured_output(WriterContent, method="json_mode")
     request = f"""You are an expert career writer. Draft a tailored CV and a cover letter for this
   candidate applying to the job below.
 
@@ -113,8 +114,18 @@ def writer(state: JobApplicationState):
   - Tailor both documents to the job's requirements using ATS-friendly language and the requirement keywords.
   - Use ONLY the candidate's real experience and skills — do NOT fabricate employers, achievements, or qualifications.
   - CV: plain text, clear standard sections. Cover letter: concise, professional, 3–4 short paragraphs.
+  - Use the candidate's REAL details from their experience above. Write out in full any section
+    the resume actually supports (e.g. Education, Certifications, Projects). If the resume contains
+    NO information for a section, OMIT that section entirely — never output placeholders, brackets,
+    "[...]", "not specified", or "TBD", and never invent details to fill it.
+
+  OUTPUT FORMAT
+  Respond with ONLY a valid JSON object — no preamble, no markdown fences — with exactly these two keys:
+  - "cv": a string containing the full CV text
+  - "cover_letter": a string containing the full cover letter text
   """
     response = structured_llm.invoke(request)
+    print(f"=============Writer Attempt: {state["wcloop_counter"]}=================")
     return {"cv": response.cv, "cover_letter": response.cover_letter, "wcloop_counter": state["wcloop_counter"] +1}
 
 
@@ -123,10 +134,67 @@ class CriticOutput(BaseModel):
     critic_notes: str = Field(description="Specific, actionable revision feedback for the writer — exactly what to add, cut, or rephrase. Required on every pass, even when the score is high.")
     
 def critic(state: JobApplicationState):
-    request = ""
-    structured_llm = llm.with_structured_output(CriticOutput)
-    response = structured_llm.invoke(request)
-    return {"critic_score": response.critic_score, "critic_notes": response.critic_notes}
+      structured_llm = llm.with_structured_output(CriticOutput, method="json_mode")
+      request = f"""You are a strict senior hiring reviewer and ATS screener. Critically evaluate the
+  candidate's CV and cover letter against the job below, and score how ready they are to send.
+
+  JOB
+  Description: {state['pasted_jd']}
+
+  DRAFT TO REVIEW
+  CV:
+  {state['cv']}
+
+  Cover letter:
+  {state['cover_letter']}
+
+  CANDIDATE'S REAL EXPERIENCE (ground truth — the ONLY facts that are true about this candidate)
+  {state['experience_summary']}
+
+  HOW TO SCORE (0-10)
+  - How well the CV + cover letter match the job's requirements and use its keywords (ATS-friendly).
+  - Clarity, structure, and professional tone.
+  - Factual grounding: every claim must be supported by the candidate's real experience above.
+  - Completeness: the draft should surface the candidate's MOST relevant real experience for THIS job.
+    Flag important, relevant details from the candidate's real experience that the writer omitted,
+    buried, or underplayed (e.g. a matching project, tool, or quantified achievement left out).
+  - A 7 or higher means it is genuinely ready to send; below 7 means it still needs work.
+
+  YOUR FEEDBACK (critic_notes — REQUIRED, even on a high score)
+  - Be specific and actionable: name exactly what to add, cut, or rephrase, and where.
+  - Flag any claim in the CV or cover letter NOT supported by the candidate's real experience above.
+  - Call out relevant real experience that was omitted or underplayed and should be added.
+  - Write the notes so the writer can act on them directly next revision — no vague praise.
+
+  OUTPUT FORMAT
+  Respond with ONLY a valid JSON object — no preamble, no markdown fences — with exactly these two keys:
+  - "critic_score": an integer from 0 to 10
+  - "critic_notes": a string with your actionable feedback
+  """
+      response = structured_llm.invoke(request)
+      print(f"=============Critic score is {response.critic_score}=========================\n =====================Critic Notes are: {response.critic_notes}")
+      return {"critic_score": response.critic_score, "critic_notes": response.critic_notes}
+
+
+def hitl_gate_2(state: JobApplicationState):
+    
+    payload = [{"name": "cv_status","prompt": f"""The draft did NOT reach the quality bar (score >= 7) after {state['wcloop_counter']} revision attempts.
+  A human decision is needed.
+
+  Final critic score: {state['critic_score']}/10
+  Critic's notes: {state['critic_notes']}
+
+  --- CV ---
+  {state['cv']}
+
+  --- COVER LETTER ---
+  {state['cover_letter']}
+
+  Approve this draft for sending anyway, or reject it?""" , "kind": "choice", "options": {"1": "Approved", "2": "Rejected"}}]
+    request = interrupt(payload)
+    
+    return {"cv_status": request["cv_status"]}
+
 
 
 
