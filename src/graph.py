@@ -1,10 +1,16 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.postgres import PostgresSaver
 from state import JobApplicationState
 from nodes import extract_requirements, score_fit, hitl_gate, writer, critic, hitl_gate_2
 from datetime import datetime
 from langgraph.types import Command
 from interrupt import collect_answers
+
+import os
+from dotenv import load_dotenv
+load_dotenv()
+DB_URI = os.getenv("DATABASE_URL")
 
 def route_after_gate(state: JobApplicationState):
     if state["status"] == "Approved":
@@ -37,7 +43,7 @@ builder.add_edge("verdict","gate")
 builder.add_conditional_edges("gate",route_after_gate)
 builder.add_edge("writer","critic")
 builder.add_conditional_edges("critic",route_after_critic)
-graph = builder.compile(checkpointer= InMemorySaver())
+
 
 sample_jd = """
   AI Automation Engineer — Remote (EU time zones)
@@ -73,6 +79,9 @@ thread_id = datetime.now().strftime("Job_%d_%m_%Y__%H_%M_%S")
 
 config = {"configurable": {"thread_id": thread_id}}
 
+with open("data/resume.md", "r", encoding="utf-8") as f:
+      experience_summary = f.read()
+
 # full_name = input("What's your full name?\n")
 # email = input("Your email?\n")
 # phone = input("Your phone number?\n")
@@ -91,60 +100,62 @@ config = {"configurable": {"thread_id": thread_id}}
 # pasted_jd = input("Paste the full job description:\n")
 
 
-# result = graph.invoke({
-#       "full_name": full_name,
-#       "email": email,
-#       "phone": phone,
-#       "location": location,
-#       "linkedin_url": linkedin_url,
-#       "github_url": github_url,
-#       "current_title": current_title,
-#       "years_experience": years_experience,
-#       "skills": skills,
-#       "work_authorization": work_authorization,
-#       "work_preference": work_preference,
-#       "willing_to_relocate": willing_to_relocate,
-#       "salary_expectation": salary_expectation,
-#       "salary_currency": salary_currency,
-#       "company_name": company_name,
-#       "pasted_jd": pasted_jd,
-#       "status": "Pending",
-#      }, config=config)
+with PostgresSaver.from_conn_string(DB_URI) as checkpointer:
+    checkpointer.setup()
+    graph = builder.compile(checkpointer= checkpointer)
+    # result = graph.invoke({
+    #       "full_name": full_name,
+    #       "email": email,
+    #       "phone": phone,
+    #       "location": location,
+    #       "linkedin_url": linkedin_url,
+    #       "github_url": github_url,
+    #       "current_title": current_title,
+    #       "years_experience": years_experience,
+    #       "skills": skills,
+    #       "work_authorization": work_authorization,
+    #       "work_preference": work_preference,
+    #       "willing_to_relocate": willing_to_relocate,
+    #       "salary_expectation": salary_expectation,
+    #       "salary_currency": salary_currency,
+    #       "company_name": company_name,
+    #       "pasted_jd": pasted_jd,
+    #       "status": "Pending",
+    #      }, config=config)
 
-with open("data/resume.md", "r", encoding="utf-8") as f:
-      experience_summary = f.read()
 
 
-result = graph.invoke({
-        "full_name": "Syed Ezam Zaidi",
-        "email": "syedezamzaidi@gmail.com",
-        "phone": "+91-9876543210",
-        "location": "Ghaziabad, Uttar Pradesh, India",
-        "linkedin_url": "https://linkedin.com/in/syed-ezam-zaidi",
-        "github_url": "https://github.com/SyedEzamZaidi",
-        "current_title": "RPA & Automation Architect",
-        "years_experience": 7.0,
-        "skills": ["Automation Anywhere", "Power Platform", "Python (learning)", "RPA", "BI"],
-        "work_authorization": "Indian citizen; No other legal permits for any other country",
-        "work_preference": "Remote",
-        "willing_to_relocate": "No",
-        "salary_expectation": 2500000,
-        "salary_currency": "INR",
-        "company_name": "Acme Remote GmbH",
-        "pasted_jd": sample_jd,
-        "status": "Pending",
-        "experience_summary": experience_summary,
-        "wcloop_counter": 0
-       }, config=config)
+    result = graph.invoke({
+            "full_name": "Syed Ezam Zaidi",
+            "email": "syedezamzaidi@gmail.com",
+            "phone": "+91-9876543210",
+            "location": "Ghaziabad, Uttar Pradesh, India",
+            "linkedin_url": "https://linkedin.com/in/syed-ezam-zaidi",
+            "github_url": "https://github.com/SyedEzamZaidi",
+            "current_title": "RPA & Automation Architect",
+            "years_experience": 7.0,
+            "skills": ["Automation Anywhere", "Power Platform", "Python", "RPA", "BI"],
+            "work_authorization": "Indian citizen; No other legal permits for any other country",
+            "work_preference": "Remote",
+            "willing_to_relocate": "No",
+            "salary_expectation": 4200000,
+            "salary_currency": "INR",
+            "company_name": "Acme Remote GmbH",
+            "pasted_jd": sample_jd,
+            "status": "Pending",
+            "experience_summary": experience_summary,
+            "wcloop_counter": 0
+        }, config=config)
 
-# print(result["__interrupt__"][0].value)
+    # print(result["__interrupt__"][0].value)
 
-if "__interrupt__" in result:
-    fields = result["__interrupt__"][0].value
-    clean = collect_answers(fields)            
-    final = graph.invoke(Command(resume= clean), config= config)
+    while "__interrupt__" in result:
+        fields = result["__interrupt__"][0].value
+        clean = collect_answers(fields)            
+        result = graph.invoke(Command(resume= clean), config= config)
+    
+    final= result
 
-else:
-    final = result
+
 
 print(final["cv"])
