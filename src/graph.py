@@ -159,3 +159,32 @@ with PostgresSaver.from_conn_string(DB_URI) as checkpointer:
 
 
 print(final["cv"])
+
+
+import psycopg
+
+with psycopg.connect(DB_URI) as conn:
+      with conn.cursor() as cur:
+          cur.execute(
+              """INSERT INTO applications
+                 (thread_id, company, fit_score, fit_reason, eligible, eligible_reason,
+                  status, review_notes, cv, cover_letter, critic_score, critic_notes,
+                  iterations, cv_status)
+                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+              (
+                  thread_id,                      # from the variable, not final
+                  final["company_name"],          # column 'company'
+                  final["fit_score"],
+                  final["fit_reason"],
+                  final["eligible"],
+                  final["eligible_reason"],
+                  final["status"],
+                  final["review_notes"],
+                  final.get("cv"),                # .get() → None → NULL on a rejected run
+                  final.get("cover_letter"),
+                  final.get("critic_score"),
+                  final.get("critic_notes"),
+                  final.get("wcloop_counter"),    # column 'iterations'
+                  final.get("cv_status"),
+              )
+          )
